@@ -128,6 +128,16 @@ MakeBoundCheck(
     bool skip_ivar_domain,
     const std::unordered_set<IterVar>& skip_iter);
 
+void Dump(const std::unordered_map<const VarNode*, IntSet>& dom_map);
+
+void Dump(const std::unordered_map<IterVar, Range>& rmap);
+
+void Dump(const std::unordered_map<IterVar, IntSet>& up_state);
+
+void Dump(const std::unordered_map<IterVar, PrimExpr>& value_map);
+
+void Dump(const std::unordered_map<Tensor, TensorDom>& in_dom);
+
 }  // namespace te
 }  // namespace tvm
 #endif  // TVM_TE_SCHEDULE_MESSAGE_PASSING_H_

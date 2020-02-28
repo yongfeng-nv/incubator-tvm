@@ -539,5 +539,68 @@ std::vector<PrimExpr> MakeBoundCheck(
   }
   return preds;
 }
+template <class keytype, class valuetype>
+std::multimap<std::string, valuetype> remap(
+    const std::unordered_map<keytype, valuetype>& unordered) {
+  std::multimap<std::string, valuetype> ordered;
+  for (auto entry : unordered) {
+    std::stringstream ss;
+    ss << entry.first;
+    ordered.insert(std::pair<std::string, valuetype>(ss.str(), entry.second));
+  }
+  return ordered;
+}
+
+void Dump(const std::unordered_map<const VarNode*, IntSet>& dom_map) {
+  LOG(INFO) << "dom_map:";
+  for (auto entry : dom_map) {
+    LOG(INFO) << entry.first << "::" << entry.second;
+  }
+}
+
+void Dump(const std::unordered_map<IterVar, Range>& rmap) {
+  std::multimap<std::string, Range> ordered = remap(rmap);
+  LOG(INFO) << "rmap:";
+  for (auto entry : ordered) {
+    LOG(INFO) << entry.first << "::" << entry.second;
+  }
+}
+
+void Dump(const std::unordered_map<IterVar, IntSet>& up_state) {
+  std::multimap<std::string, IntSet> ordered = remap(up_state);
+  LOG(INFO) << "up_state:";
+  for (auto entry : ordered) {
+    LOG(INFO) << entry.first << "::" << entry.second;
+  }
+}
+
+void Dump(const std::unordered_map<IterVar, PrimExpr>& value_map) {
+  std::multimap<std::string, PrimExpr> ordered = remap(value_map);
+  LOG(INFO) << "value_map:";
+  for (auto entry : ordered) {
+    LOG(INFO) << entry.first << "::" << entry.second;
+  }
+}
+
+void Dump(const std::unordered_map<Tensor, TensorDom>& in_dom) {
+  LOG(INFO) << "in_dom:";
+  for (auto entry : in_dom) {
+    LOG(INFO) << entry.first << "::";
+    int i = 0;
+    for (auto entry2 : entry.second.data) {
+      LOG(INFO) << "D" << i++;
+      for (auto entry3 : entry2) {
+        LOG(INFO) << "[" << entry3.min() << "," << entry3.max() << "]";
+      }
+    }
+  }
+}
+
+void Dump(const std::unordered_map<const IterVar*, PrimExpr>& vsub) {
+  LOG(INFO) << "vsub:";
+  for (auto entry : vsub) {
+    LOG(INFO) << entry.first << "::" << entry.second;
+  }
+}
 }  // namespace te
 }  // namespace tvm

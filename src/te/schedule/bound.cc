@@ -38,6 +38,8 @@ using runtime::StorageRank;
 using runtime::StorageScope;
 using runtime::ThreadScope;
 
+bool verbose = false;
+
 /*! \brief The graph context used during bound inference. */
 struct GraphContext {
   /*! \brief The feed graph */
@@ -69,6 +71,9 @@ bool NeedRelax(const IterVar& iv,
       ts.dim_index == 0) {
     return true;
   }
+  if (!found_attach) {
+    return true;
+  }
   return static_cast<int>(scope.rank) <= ts.rank;
 }
 
@@ -96,6 +101,7 @@ StorageScope InferStorageScope(
 void InferRootBound(const Stage& stage,
                     const GraphContext& ctx,
                     std::unordered_map<IterVar, Range>* rmap) {
+  if(verbose) { LOG(INFO) << "InferRootBound Begin: "; }                      
   CHECK_NE(stage->attach_type, kInline)
       << "call schedule.normalize before scheduleops";
   if (stage->attach_type == kInlinedAlready) return;
@@ -187,7 +193,9 @@ void InferRootBound(const Stage& stage,
         << "Invalid Schedule, cannot find the producer " << stage->op
         << " along the loop nest specified by compute_at of consumer " << op;
     // Get the domain of the consumer
+    if(verbose) { LOG(INFO) << "Pre PassUpDomain:";  Dump(up_state); }
     PassUpDomain(op_stage, *rmap, &up_state);
+    if(verbose) { LOG(INFO) << "Post PassUpDomain:";  Dump(up_state); }
     // Relax if needed.
     std::unordered_map<const VarNode*, IntSet> dom_map;
     arith::Analyzer analyzer;
@@ -205,12 +213,19 @@ void InferRootBound(const Stage& stage,
       }
       analyzer.Bind(iv->var, r);
     }
+    if(verbose) { LOG(INFO) << "Pre PropBoundToInputs:";  Dump(dom_map); };
+    if(verbose) { LOG(INFO) << "Pre PropBoundToInputs:";  Dump(tmap); }
     op->PropBoundToInputs(op, &analyzer, dom_map, &tmap);
+    if(verbose) { LOG(INFO) << "Post PropBoundToInputs:";  Dump(tmap); }
   }
+  if(verbose) { LOG(INFO) << "Pre GatherBound:";  Dump(*rmap); }
   stage->op->GatherBound(stage->op, tmap, rmap);
+  if(verbose) { LOG(INFO) << "Post GatherBound:";  Dump(*rmap); }
+  if(verbose) { LOG(INFO) << "InferRootBound End:"; }
 }
 
 Map<IterVar, Range> InferBound(const Schedule& sch) {
+  if(verbose) { LOG(INFO) << "InferBound Begin: "; }
   // Prepare context
   GraphContext ctx;
   Array<Operation> roots;
@@ -235,7 +250,10 @@ Map<IterVar, Range> InferBound(const Schedule& sch) {
   std::unordered_map<IterVar, Range> ret;
   for (size_t i = sch->stages.size(); i != 0; --i) {
     const Stage& stage = sch->stages[i - 1];
+   if(verbose) { LOG(INFO) << "Stage: "; tvm::Dump(stage); }
+    if(verbose) { LOG(INFO) << "Pre InferRootBound:";  Dump(ret); }
     InferRootBound(stage, ctx, &ret);
+    if(verbose) { LOG(INFO) << "Post InferRootBound:";  Dump(ret); }
 
     // bind bound of root iter vars.
     for (auto iv : stage->op->root_iter_vars()) {
@@ -246,17 +264,22 @@ Map<IterVar, Range> InferBound(const Schedule& sch) {
     }
 
     // pass down to get bound of all iter vars.
+    if(verbose) { LOG(INFO) << "Pre PassDownDomain:";  Dump(ret); }
     PassDownDomain(stage, &ret, &analyzer);
+    if(verbose) { LOG(INFO) << "Post PassDownDomain:";  Dump(ret); }
     for (IterVar iv : stage->env_threads) {
       CHECK(iv->dom.defined());
       ret[iv] = iv->dom;
     }
+    if(verbose) { LOG(INFO) << "Post env_threads:";  Dump(ret); }
   }
   for (auto& p : ret) {
     ret[p.first] = Range::make_by_min_extent(
         analyzer.Simplify(p.second->min),
         analyzer.Simplify(p.second->extent));
   }
+  if(verbose) { LOG(INFO) << "Post InferBound:";  Dump(ret); }
+  if(verbose) { LOG(INFO) << "InferBound End: "; }
   return Map<IterVar, Range>(ret.begin(), ret.end());
 }
 
