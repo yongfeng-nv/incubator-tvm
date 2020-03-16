@@ -55,7 +55,7 @@ bool NeedRelax(const IterVar& iv,
                const std::unordered_map<IterVar, IterVar>& bind_map,
                const runtime::StorageScope& scope) {
   // trying to make relaxation decision only on whether iv is above/at or below the attaching point               
-  // return !found_attach;
+  return !found_attach;
   auto it = bind_map.find(iv);
   const std::string& tag = (
       it != bind_map.end() ? it->second->thread_tag : iv->thread_tag);
